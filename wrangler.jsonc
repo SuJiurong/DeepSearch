@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deepsearch",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": true
+  },
+  "vars": {
+    "DEEPSEEK_SEARCH_URL": "https://api.deepseek.com/v1/tools/search"
+  },
+  "observability": { "enabled": false }
+}
