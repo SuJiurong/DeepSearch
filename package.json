@@ -9,7 +9,7 @@
     "test:integration": "node test/integration.js",
     "test:browser": "playwright test",
     "build": "npm run check && npm test",
-    "check": "node --check src/worker.js && node --check public/app.js",
+    "check": "node --check src/worker.js && node --check public/app.js && node --check public/theme.js",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

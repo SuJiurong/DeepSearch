@@ -6,11 +6,12 @@
   <meta name="color-scheme" content="light dark">
   <title>DeepSearch · 发现值得探索的答案</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar"><a href="/" class="wordmark">DeepSearch<span class="dot">.</span></a><span class="badge">个人搜索空间</span></header>
+  <header class="topbar"><a href="/" class="wordmark">DeepSearch<span class="dot">.</span></a><div class="topbar-actions"><span class="badge">个人搜索空间</span><label class="theme-picker" for="theme">主题<select id="theme"><option value="light">浅色</option><option value="dark">深色</option><option value="system" selected>跟随系统</option></select></label></div></header>
   <main id="main">
     <section class="search-area" aria-label="搜索">
       <a class="logo" href="/" aria-label="DeepSearch 首页"><span>Deep</span>Search<span class="dot">.</span></a>
