@@ -65,7 +65,12 @@ npm run test:browser
 
 ## 部署（Cloudflare Git 集成）
 
-`wrangler.jsonc` 一起发布静态文件和 Worker。在 Cloudflare Workers 的 Git 集成中连接本仓库，生产分支选择 `main`，项目根目录使用仓库根目录，部署命令使用 `npm run deploy`。安装依赖时使用 `npm ci`，以使用 `package-lock.json` 锁定的 Wrangler 版本。
+`wrangler.jsonc` 一起发布静态文件和 Worker。在 Cloudflare Workers 的 Git 集成中连接本仓库，生产分支选择 `main`，项目根目录使用仓库根目录。安装依赖时使用 `npm ci`，以使用 `package-lock.json` 锁定的 Wrangler 版本。
+
+- **Build command**：`npm run build`（现有的 `pnpm run build` 也可用）。
+- **Deploy command**：`npx wrangler deploy`。
+
+项目使用原生静态资源，无需前端打包。`build` 依次执行现有的 JavaScript 语法检查（`npm run check`）和使用 mock fetch 的 Worker 单元测试（`npm test`），任一步失败都会使构建失败。此本地校验不调用 Wrangler、不读取 Cloudflare 凭证或运行时密钥、不请求远程服务，也不生成构建目录。Worker 打包和静态资源发布由 Deploy command 执行；构建阶段无需配置 `DEEPSEEK_API_KEY`。
 
 首次部署后，在 Cloudflare 控制台进入 **Workers & Pages → deepsearch → Settings → Variables and Secrets → Add**，选择 **Secret** 类型，名称填写 `DEEPSEEK_API_KEY`，值填写你的 DeepSeek API Key，然后保存并部署该变更。无需通过 CLI 输入密钥。应设置 Worker 的运行时 Secret，而不是仅设置 Builds 的构建环境变量。密钥尚未配置时首页可以访问，搜索返回 503 配置缺失。
 

@@ -8,6 +8,7 @@
     "test": "node --test test/worker.test.js",
     "test:integration": "node test/integration.js",
     "test:browser": "playwright test",
+    "build": "npm run check && npm test",
     "check": "node --check src/worker.js && node --check public/app.js",
     "deploy": "wrangler deploy"
   },
