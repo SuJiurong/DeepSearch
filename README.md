@@ -4,16 +4,24 @@
 
 ## DeepSeek 接口核实
 
-2026-10-18 已在线读取 DeepSeek 官方文档：
+2026-10-19 已在线读取 DeepSeek 官方文档：
 
 - https://api-docs.deepseek.com/api/search/
 - https://api-docs.deepseek.com/guides/search/
 
 官方公开 Search API 为 `POST https://api.deepseek.com/v1/tools/search`，使用 `Authorization: Bearer <DeepSeek API Key>`。本项目直接调用此搜索 API，不调用聊天模型，不生成假搜索结果，也不切换其他供应商。
 
-请求 JSON：`{"query":"关键词","count":10,"need_content":false}`。query 为 1–128 个 Unicode 字符；count 为 1–50。响应为 `{"results":[{"title":"标题","url":"https://example.com","snippet":"摘要", ...}]}`。界面仅展示原始 title/url/snippet，不需要全文。保留 site:、引号等搜索语法。不自动重试付费请求。
+请求 JSON：`{"query":"关键词","count":50,"need_content":false}`。query 为 1–128 个 Unicode 字符；count 为 1–50，默认 10。官方 API 与搜索指南均未提供 offset、page 或 cursor；未知字段会被忽略，不能用它们实现上游分页。响应为 `{"results":[{"title":"标题","url":"https://example.com","snippet":"摘要", ...}]}`。界面仅展示原始 title/url/snippet，不需要全文。保留 site:、引号等搜索语法。不自动重试付费请求。
 
 **文档联网核实不等于真实搜索调用成功。当前未提供 API Key，未验证真实上游搜索。** 需要用户补充有效 DeepSeek API Key 及具备权限、余额的账户；当前不缺接口文档。
+
+## 结果分页与展示
+
+前端一次请求 `count=50`，每页显示 10 条，最多 5 页。页数只由实际返回的可用结果决定，例如 23 条为 3 页、最后一页 3 条；不足 11 条不显示分页。这里不是无限分页，也不是全网总结果数。官方指南说明 count 不影响单次请求价格。
+
+结果页使用 `/search?q=关键词&page=2`；支持刷新和浏览器前进后退。无效页码归一到第 1 页，超出实际页数时归一到最后一页；空结果归一到第 1 页。新提交搜索回第 1 页。同一文档内按查询复用内存中的结果和进行中的请求，翻页、历史导航与重复提交不会重复查询；刷新或重新打开页面会重新请求，失败后可手动重试。旧查询完成后不会覆盖新查询。
+
+展示参考实际访问的 Google 公开搜索页：顶部品牌与搜索框、桌面左对齐窄正文、域名和路径、蓝色标题与易读摘要、移动端自适应。只展示网页搜索，不提供无效分类；不展示虚构总量或速度，不请求第三方 favicon。
 
 ## 本地启动
 
@@ -32,11 +40,11 @@ npm run dev
 
 ## 路由和错误
 
-- `/`：首页；`/search?q=关键词`：可刷新、分享的结果页，支持浏览器前进后退。
+- `/`：首页；`/search?q=关键词&page=1`：可刷新、分享的结果页，支持浏览器前进后退。
 - `GET /api/search?q=关键词&count=10`：返回 `{query,results,source}`，无需用户登录。
 - 400：空白/过长查询、重复参数或非法 count；405：不支持的方法。
 - 503：未配置密钥或地址无效；502：上游账户/网络/协议故障；429：限流；504：超时（上游请求 10 秒）。
-- 错误为 `{error:{code,message}}`。不透传上游错误内容、密钥或请求头；不缓存搜索 API 响应。仅允许 HTTP(S) 结果链接，文本通过 textContent 渲染。
+- 错误为 `{error:{code,message}}`。不透传上游错误内容、密钥或请求头；HTTP 不缓存搜索 API 响应；前端会话内存复用查询结果。仅允许 HTTP(S) 结果链接，文本通过 textContent 渲染。
 
 ## 验证
 
@@ -49,9 +57,9 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-本次实际验证结果：`npm install` 成功（审计 0 漏洞）；`npm run check` 通过；`npm test` 为 7/7 通过；`npm run test:integration` 全部通过；`npm run test:browser` 为 5/5 通过。曾实际启动 `npm run dev`，首页 HTTP 200，检查了桌面页面截图。侧边浏览器无法连通本地服务，随后使用本机 Chromium 完成浏览器测试。未执行线上部署，未调用真实 DeepSeek 搜索。
+2026-10-19 验证：`npm run check` 通过；`npm test` 为 8/8 通过；`npm run test:integration` 全部通过；`npm run test:browser` 为 9/9 通过。浏览器覆盖 23 条结果的翻页与尾页、历史导航、新搜索重置、缓存请求次数、刷新重新请求、进行中的查询复用、50 条最多 5 页、非法页码、短结果和空结果。320、390、700、768、1280px 视口均验证无横向溢出。未执行线上部署，未调用真实 DeepSeek 搜索。
 
-浏览器测试会自动启动独立本地 Worker，强制使用空密钥；测试成功、加载、空结果、异常、重试、回车提交、查询参数、刷新和前进后退、取消旧请求、HTML 文本安全和 390px 窄屏布局。搜索成功数据由 Playwright 明确 mock，不是外部联网结果。
+浏览器测试会自动启动独立本地 Worker，强制使用空密钥；测试成功、加载、空结果、异常、重试、回车提交、查询参数、刷新和前进后退、忽略旧查询的过期渲染、HTML 文本安全和 390px 窄屏布局。搜索成功数据由 Playwright 明确 mock，不是外部联网结果。
 
 单元测试使用注入的 mock fetch。集成测试启动真实本地 Wrangler Worker、独立 HTTP mock 上游，检查首页、结果页、搜索请求、输入校验和异常路径；测试结束自动关闭进程。Mock 只在测试中创建，响应 source=mock，页面会显示“本地 Mock 测试数据”。这些测试不证明 DeepSeek 真实联网搜索成功。
 

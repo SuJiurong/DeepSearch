@@ -77,3 +77,99 @@ test('real Worker missing configuration is visible as an actionable error', asyn
   await expect(page.locator('#status')).toContainText('搜索服务尚未配置');
   await expect(page.locator('#retry')).toBeVisible();
 });
+
+async function pagedMock(page, count = 23) {
+  const calls = [];
+  await page.route('**/api/search?*', async route => {
+    const params = new URL(route.request().url()).searchParams;
+    calls.push(params.get('q'));
+    expect(params.get('count')).toBe('50');
+    expect([...params.keys()].sort()).toEqual(['count', 'q']);
+    await route.fulfill({ json: { source: 'mock', results: Array.from({ length: count }, (_, i) => ({
+      title: `Result ${i + 1}`, url: `https://example.com/docs/${i + 1}?long=${'a'.repeat(150)}`,
+      snippet: `Mock result ${i + 1} — 这是用于验证分页与窄屏布局的测试摘要。`.repeat(3),
+    })) } });
+  });
+  return calls;
+}
+
+test('23 results: pages, final page, history, query reset, cache and refresh', async ({ page }) => {
+  const calls = await pagedMock(page);
+  await page.goto('/search?q=alpha');
+  await expect(page.locator('.result')).toHaveCount(10);
+  await expect(page.locator('#status')).toContainText('本次返回 23 条结果');
+  await page.getByRole('link', { name: '第 2 页', exact: true }).click();
+  await expect(page.locator('.result h2').first()).toHaveText('Result 11');
+  await expect(page).toHaveURL(/page=2/);
+  await page.getByRole('link', { name: '下一页', exact: true }).click();
+  await expect(page.locator('.result')).toHaveCount(3);
+  await expect(page.locator('#status')).toContainText('显示 21–23 条');
+  await expect(page.getByRole('link', { name: '下一页', exact: true })).toHaveCount(0);
+  await page.goBack();
+  await expect(page.locator('.result h2').first()).toHaveText('Result 11');
+  await page.goForward();
+  await expect(page.locator('.result')).toHaveCount(3);
+  expect(calls).toEqual(['alpha']);
+  await page.locator('#query').fill('beta');
+  await page.locator('#query').press('Enter');
+  await expect(page).toHaveURL(/q=beta&page=1/);
+  await expect(page.locator('.result h2').first()).toHaveText('Result 1');
+  await page.goBack();
+  await expect(page.locator('.result')).toHaveCount(3);
+  expect(calls).toEqual(['alpha', 'beta']);
+  await page.reload();
+  await expect(page.locator('.result')).toHaveCount(3);
+  expect(calls).toEqual(['alpha', 'beta', 'alpha']);
+});
+
+test('invalid page values, short and empty results do not invent pages', async ({ page }) => {
+  await pagedMock(page, 7);
+  for (const value of ['0', '-1', '1.5', 'oops', '999', '9007199254740992', '2&page=3']) {
+    await page.goto(`/search?q=short&page=${value}`);
+    await expect(page.locator('.result')).toHaveCount(7);
+    await expect(page).toHaveURL(/page=1$/);
+    await expect(page.locator('#pagination')).toBeHidden();
+  }
+  await page.unroute('**/api/search?*');
+  await pagedMock(page, 0);
+  await page.goto('/search?q=empty&page=9');
+  await expect(page.locator('#status')).toContainText('没有找到相关网页');
+  await expect(page).toHaveURL(/page=1$/);
+  await expect(page.locator('#pagination')).toBeHidden();
+});
+
+test('50 results have exactly five pages and narrow screens do not overflow', async ({ page }) => {
+  const calls = await pagedMock(page, 50);
+  await page.goto('/search?q=full&page=99');
+  await expect(page).toHaveURL(/page=5$/);
+  await expect(page.locator('.result')).toHaveCount(10);
+  await expect(page.locator('.result h2').first()).toHaveText('Result 41');
+  await expect(page.locator('#pagination [aria-current=page]')).toHaveText('5');
+  for (const width of [320, 390, 700, 768, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.getByRole('link', { name: '第 3 页', exact: true }).click();
+  await expect(page.locator('.result h2').first()).toHaveText('Result 21');
+  expect(calls).toEqual(['full']);
+  await expect(page.locator('.result-site').first()).toHaveText('example.com');
+  await expect(page.locator('.result img')).toHaveCount(0);
+});
+
+test('returning to an in-flight query reuses its request', async ({ page }) => {
+  const calls = [];
+  await page.route('**/api/search?*', async route => {
+    const query = new URL(route.request().url()).searchParams.get('q');
+    calls.push(query);
+    if (query === 'alpha') await new Promise(resolve => setTimeout(resolve, 800));
+    await route.fulfill({ json: { source: 'mock', results: [{ title: query, url: 'https://example.com/', snippet: 'mock' }] } });
+  });
+  await page.goto('/search?q=alpha');
+  await expect(page.locator('#status')).toHaveText('正在搜索网页…');
+  await page.locator('#query').fill('beta');
+  await page.locator('#query').press('Enter');
+  await expect(page.locator('.result h2')).toHaveText('beta');
+  await page.goBack();
+  await expect(page.locator('.result h2')).toHaveText('alpha');
+  expect(calls).toEqual(['alpha', 'beta']);
+});

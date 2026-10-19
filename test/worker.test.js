@@ -61,3 +61,11 @@ test('network failure and timeout', async () => {
   }), 10);
   assert.equal(response.status, 504);
 });
+
+test('maximum count forwards only documented fields and returns up to 50 results', async () => {
+  const response = await search(req('q=many&count=50'), env, async (_url, options) => {
+    assert.deepEqual(JSON.parse(options.body), { query: 'many', count: 50, need_content: false });
+    return Response.json({ results: Array.from({ length: 53 }, (_, i) => ({ title: String(i), url: `https://example.com/${i}`, snippet: 'mock' })) });
+  });
+  assert.equal((await response.json()).results.length, 50);
+});

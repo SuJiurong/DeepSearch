@@ -28,7 +28,9 @@
     <section id="results-area" class="results-area" aria-label="搜索结果" hidden>
       <div class="results-tab">网页 <span>Web</span></div>
       <p id="status" role="status" aria-live="polite"></p>
+      <p class="results-limit">每次搜索最多获取 50 条，每页 10 条；页数以实际结果为准。当前接口不支持继续获取后续结果。</p>
       <div id="results"></div>
+      <nav id="pagination" aria-label="搜索结果分页" hidden></nav>
       <button id="retry" class="retry" type="button" hidden>重新搜索</button>
     </section>
     <noscript><p>请启用 JavaScript 以加载搜索结果。</p></noscript>
