@@ -9,6 +9,9 @@
     "html_handling": "none",
     "run_worker_first": true
   },
+  // Preserve dashboard-managed variables across Git deployments.
+  // Add DEEPSEEK_API_KEY as a Secret in the dashboard; never add a vars placeholder.
+  "keep_vars": true,
   "vars": {
     "DEEPSEEK_SEARCH_URL": "https://api.deepseek.com/v1/tools/search"
   },

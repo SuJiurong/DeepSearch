@@ -55,12 +55,24 @@ npm run test:browser
 
 单元测试使用注入的 mock fetch。集成测试启动真实本地 Wrangler Worker、独立 HTTP mock 上游，检查首页、结果页、搜索请求、输入校验和异常路径；测试结束自动关闭进程。Mock 只在测试中创建，响应 source=mock，页面会显示“本地 Mock 测试数据”。这些测试不证明 DeepSeek 真实联网搜索成功。
 
-## 部署（未执行）
+## 部署（Cloudflare Git 集成）
 
-```sh
-npx wrangler login
-npx wrangler secret put DEEPSEEK_API_KEY
-npm run deploy
-```
+`wrangler.jsonc` 一起发布静态文件和 Worker。在 Cloudflare Workers 的 Git 集成中连接本仓库，生产分支选择 `main`，项目根目录使用仓库根目录，部署命令使用 `npm run deploy`。安装依赖时使用 `npm ci`，以使用 `package-lock.json` 锁定的 Wrangler 版本。
 
-`wrangler.jsonc` 一起发布静态文件和 Worker。项目不加用户鉴权；上线后公开接口会消耗你的 DeepSeek 账户配额。按需在 Cloudflare 配置限流。开发与测试无需部署到线上。
+首次部署后，在 Cloudflare 控制台进入 **Workers & Pages → deepsearch → Settings → Variables and Secrets → Add**，选择 **Secret** 类型，名称填写 `DEEPSEEK_API_KEY`，值填写你的 DeepSeek API Key，然后保存并部署该变更。无需通过 CLI 输入密钥。应设置 Worker 的运行时 Secret，而不是仅设置 Builds 的构建环境变量。密钥尚未配置时首页可以访问，搜索返回 503 配置缺失。
+
+### 重新发布时如何保留值
+
+- 配置已启用 `keep_vars: true`，保留只在控制台定义的普通变量；已有 Secret 由 Wrangler 部署默认保留。`DEEPSEEK_API_KEY` 不在配置的 `vars` 中声明，因此后续 Git 部署不会用仓库中的占位值覆盖它。
+- `keep_vars` 不会让控制台值优先于配置中同名的 `vars`。配置显式声明的值仍会覆盖控制台值，空字符串也一样。因此不要添加 `"DEEPSEEK_API_KEY": ""`，也不要通过部署参数或 secrets 文件提供同名替代值。
+- `DEEPSEEK_SEARCH_URL` 仍由仓库 `vars` 管理，每次部署使用配置中的官方地址；如果需要将它改为控制台管理，先从 `vars` 中移除该项。
+
+### 预建 Secret 的限制与验证依据
+
+当前方案不能在首次 Git 部署时自动创建一个无值、等待填写的 Secret 条目：需要在控制台手动添加一次上述名称和值。普通 `vars` 只能创建普通变量，不能预建 Secret。
+
+已检查本项目安装的 Wrangler **4.151.1** 的 `config-schema.json` 和部署实现。该版本支持 `secrets.required`，但它声明的是必需密钥，不是空 Secret 模板：部署时未提供的必需密钥会请求继承已有绑定；新 Worker 无法继承时会在部署前报错，已有 Worker 缺少该绑定时也会部署失败。因此本项目不启用它，以支持先完成 Git 部署、再通过控制台设置密钥的流程。
+
+源码中 `keep_vars` 对应上传元数据的 `keep_bindings: ["plain_text", "json"]`，Secret 的保留由独立的 `keepSecrets` 逻辑处理。官方参考：[Wrangler deploy 参数](https://developers.cloudflare.com/workers/wrangler/commands/workers/#deploy)、[Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)。上述结论基于配置、安装版本实现和文档核对，不代表已验证线上账户；本次未执行 CF 部署或修改远程设置。
+
+项目不加用户鉴权；上线后公开接口会消耗你的 DeepSeek 账户配额。按需在 Cloudflare 配置限流。开发与测试无需部署到线上。
