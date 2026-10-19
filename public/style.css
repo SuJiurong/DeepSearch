@@ -50,6 +50,24 @@
 
 :root[data-theme="dark"]{color-scheme:dark;--surface:#202124;--text:#e8eaed;--muted:#bdc1c6;--link:#8ab4f8;--line:#3c4043;--soft:#303134;--match:#fdd663;--field:#303134;--field-line:#5f6368;--focus:#8ab4f8;--button:#303134;--button-hover:#3c4043;--button-text:#8ab4f8;--footer:#171717;--error:#f28b82}
 .topbar-actions{display:flex;align-items:center;gap:20px}
-.theme-picker{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);white-space:nowrap}
-.theme-picker select{min-height:44px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer}
-@media(max-width:700px){.topbar-actions .badge{display:none}.topbar-actions{gap:0}.theme-picker{gap:6px}}
+/* A single moving selection surface keeps all three choices visible. */
+.theme-picker{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,40px);padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--text);flex-shrink:0}
+.theme-picker::before{content:"";position:absolute;z-index:-1;top:3px;left:3px;width:40px;height:40px;border-radius:50%;background:#d3e3fd;box-shadow:0 1px 3px #20212418;transform:translateX(80px)}
+:root[data-theme-preference="light"] .theme-picker::before{transform:translateX(0)}
+:root[data-theme-preference="dark"] .theme-picker::before{transform:translateX(40px)}
+:root[data-theme="dark"] .theme-picker::before{background:#394b68;box-shadow:0 1px 3px #0003}
+.theme-picker button{display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted)}
+.theme-picker button:hover{background:#80868b18;color:var(--text)}
+.theme-picker button[aria-pressed="true"]{color:#1967d2}
+:root[data-theme="dark"] .theme-picker button[aria-pressed="true"]{color:#aecbfa}
+.theme-picker button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.theme-picker svg{width:19px;height:19px;transform:scale(.95)}
+.theme-picker button[aria-pressed="true"] svg{transform:scale(1.08)}
+.theme-picker button[data-theme-choice="light"][aria-pressed="true"] svg{transform:rotate(45deg) scale(1.08)}
+.theme-picker button[data-theme-choice="dark"][aria-pressed="true"] svg{transform:rotate(-12deg) scale(1.08)}
+@media(prefers-reduced-motion:no-preference){
+  .theme-picker.is-interactive::before{transition:transform .28s cubic-bezier(.2,.8,.2,1),background-color .2s}
+  .theme-picker.is-interactive svg{transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+  .theme-picker.is-interactive button{transition:color .2s,background-color .2s}
+}
+@media(max-width:700px){.topbar-actions .badge{display:none}.topbar-actions{gap:0}}

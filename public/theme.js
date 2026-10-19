@@ -10,6 +10,7 @@
   function apply() {
     const theme = preference === 'system' ? (system.matches ? 'dark' : 'light') : preference;
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.themePreference = preference;
     document.querySelector('meta[name="color-scheme"]').content = theme;
   }
 
@@ -19,12 +20,22 @@
     if (preference === 'system') apply();
   });
   document.addEventListener('DOMContentLoaded', () => {
-    const select = document.querySelector('#theme');
-    select.value = preference;
-    select.addEventListener('change', () => {
-      preference = select.value;
-      apply();
-      try { localStorage.setItem(key, preference); } catch { /* Switching still works without storage. */ }
+    const buttons = document.querySelectorAll('[data-theme-choice]');
+    function syncButtons() {
+      buttons.forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.themeChoice === preference));
+      });
+    }
+    syncButtons();
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Enable motion only after an interaction, never during initial rendering.
+        document.querySelector('.theme-picker').classList.add('is-interactive');
+        preference = button.dataset.themeChoice;
+        apply();
+        syncButtons();
+        try { localStorage.setItem(key, preference); } catch { /* Switching still works without storage. */ }
+      });
     });
   });
 })();
