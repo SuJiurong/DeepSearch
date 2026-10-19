@@ -69,3 +69,17 @@ test('maximum count forwards only documented fields and returns up to 50 results
   });
   assert.equal((await response.json()).results.length, 50);
 });
+
+test('optional image metadata is preserved only for safe HTTPS URLs', async () => {
+  const response = await search(req('q=images'), env, async () => Response.json({ results: [
+    { title: 'One', url: 'https://example.com', snippet: '', site_name: ' Example ', favicon: 'https://example.com/icon.png', thumbnail: 'https://example.com/photo.jpg' },
+    { title: 'Two', url: 'https://example.org', snippet: '', site_name: {}, favicon: 'javascript:alert(1)', thumbnail: 'https://user:pass@example.org/image' },
+  ] }));
+  const { results } = await response.json();
+  assert.equal(results[0].site_name, 'Example');
+  assert.equal(results[0].thumbnail, 'https://example.com/photo.jpg');
+  assert.equal(results[0].favicon, 'https://example.com/icon.png');
+  assert.equal(results[1].thumbnail, undefined);
+  assert.equal(results[1].favicon, undefined);
+  assert.equal(results[1].site_name, undefined);
+});

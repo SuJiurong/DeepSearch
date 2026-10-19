@@ -61,6 +61,11 @@ export async function search(request, env, transport = fetch, timeoutMs = TIMEOU
     )) return error('INVALID_RESPONSE', '搜索服务返回了无法识别的数据。', 502);
     const results = data.results.filter(item => validURL(item.url)).slice(0, Number(countText)).map(item => ({
       title: item.title, url: item.url, snippet: item.snippet,
+      ...(typeof item.site_name === 'string' && item.site_name.trim() ? { site_name: item.site_name.trim().slice(0, 200) } : {}),
+      ...Object.fromEntries(['favicon', 'thumbnail'].flatMap(key => {
+        const value = item[key];
+        return typeof value === 'string' && validURL(value) && new URL(value).protocol === 'https:' ? [[key, value]] : [];
+      })),
     }));
     return json({ query, results, source: localMock ? 'mock' : 'deepseek' });
   } catch {
@@ -79,7 +84,7 @@ export default {
     if (url.pathname === '/' || url.pathname === '/search') url.pathname = '/index.html';
     const asset = await env.ASSETS.fetch(new Request(url, request));
     const response = new Response(asset.body, asset);
-    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Referrer-Policy', 'no-referrer');
     return response;
